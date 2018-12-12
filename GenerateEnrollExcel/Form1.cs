@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
@@ -72,10 +71,7 @@ namespace GenerateScore
             FileStream file = new FileStream(@"test.xlsx", FileMode.Create);
             newwb.Write(file);
             file.Close();
-
-            // 跳转tab
-            tabControl1.SelectTab(1);
-            tabPage2.Show();
+            MessageBox.Show("处理完毕，请查看test.xlsx");
         }
 
         private void calculateSheet(int i)
@@ -92,15 +88,20 @@ namespace GenerateScore
             }
             // 新的sheet
             newst = newwb.CreateSheet(sheet1.SheetName) as XSSFSheet;
+            XSSFRow newRow = newst.CreateRow(0) as XSSFRow;
             // 课程名  年级  老师  手机号 考试名称 优等人数 良等人数 有效人数
-            newst.GetRow(0).GetCell(0).SetCellValue("课程名");
-            newst.GetRow(0).GetCell(1).SetCellValue("年级");
-            newst.GetRow(0).GetCell(2).SetCellValue("老师");
-            newst.GetRow(0).GetCell(3).SetCellValue("手机号");
-            newst.GetRow(0).GetCell(4).SetCellValue("考试名称");
-            newst.GetRow(0).GetCell(5).SetCellValue("优等人数");
-            newst.GetRow(0).GetCell(6).SetCellValue("良等人数");
-            newst.GetRow(0).GetCell(7).SetCellValue("有效人数");
+            newRow.CreateCell(0).SetCellValue("课程名");
+            newRow.CreateCell(1).SetCellValue("年级");
+            newRow.CreateCell(2).SetCellValue("老师");
+            newRow.CreateCell(3).SetCellValue("手机号");
+            newRow.CreateCell(4).SetCellValue("考试名称");
+            newRow.CreateCell(5).SetCellValue("优等人数");
+            newRow.CreateCell(6).SetCellValue("优等比例");
+            newRow.CreateCell(7).SetCellValue("良等人数");
+            newRow.CreateCell(8).SetCellValue("良等比例");
+            newRow.CreateCell(9).SetCellValue("差等人数");
+            newRow.CreateCell(10).SetCellValue("差等比例");
+            newRow.CreateCell(11).SetCellValue("有效人数");
             insertIndex = 1;
             int m = 7;
             var testCell = sheet1.GetRow(0).GetCell(m);
@@ -133,34 +134,49 @@ namespace GenerateScore
             dv.Sort = "score desc";
             DataTable dtLast = dv.ToTable(false, "score");
             var total = dtLast.Rows.Count;
+            if(total==0)
+            {
+                return; 
+            }
             int p30 = (int)Math.Ceiling(total * 0.3);
             int p60 = (int)Math.Ceiling(total * 0.6);
 
-            int p30Score = (int)dtLast.Rows[p30]["score"]; // 优的分数
-            int p60Score = (int)dtLast.Rows[p60]["score"]; // 良的分数
+            float p30Score = (float)dtLast.Rows[p30]["score"]; // 优的分数
+            float p60Score = (float)dtLast.Rows[p60]["score"]; // 良的分数
 
             // 拉出所有班级信息
             DataView dvClass = dt.DefaultView;
-            DataTable dataTableClasses = dvClass.ToTable(true, "className");
+            DataTable dataTableClasses = dvClass.ToTable(true, "className", "teacher", "mobile");
 
             for (var j = 0; j < dataTableClasses.Rows.Count; j++)
             {
                 string className = dataTableClasses.Rows[j]["className"].ToString();
                 string teacher = dataTableClasses.Rows[j]["teacher"].ToString();
                 string mobile = dataTableClasses.Rows[j]["mobile"].ToString();
-                newst.GetRow(insertIndex).GetCell(0).SetCellValue(className);
-                newst.GetRow(insertIndex).GetCell(1).SetCellValue(gradeTxt);
-                newst.GetRow(insertIndex).GetCell(2).SetCellValue(teacher);
-                newst.GetRow(insertIndex).GetCell(3).SetCellValue(mobile);
-                newst.GetRow(insertIndex).GetCell(4).SetCellValue(testName);
+                XSSFRow newRow = newst.CreateRow(insertIndex) as XSSFRow;
+                newRow.CreateCell(0).SetCellValue(className);
+                newRow.CreateCell(1).SetCellValue(gradeTxt);
+                newRow.CreateCell(2).SetCellValue(teacher);
+                newRow.CreateCell(3).SetCellValue(mobile);
+                newRow.CreateCell(4).SetCellValue(testName);
+
                 // 算出优率和良率，然后输出
                 DataView dvScore = dt.DefaultView;
                 dvScore.RowFilter = "grade = '" + gradeTxt + "' and className='" + className + "' and score>= " + p30Score;
-                newst.GetRow(insertIndex).GetCell(5).SetCellValue(dvScore.Count);
-                dvScore.RowFilter = "grade = '" + gradeTxt + "' and className='" + className + "' and score<"+ p30Score + " and score>= " + p60Score;
-                newst.GetRow(insertIndex).GetCell(6).SetCellValue(dvScore.Count);
+                int p30Count = dvScore.Count;
+                dvScore.RowFilter = "grade = '" + gradeTxt + "' and className='" + className + "' and score<" + p30Score + " and score>= " + p60Score;
+                int p60Count = dvScore.Count;
                 dvScore.RowFilter = "grade = '" + gradeTxt + "' and className='" + className + "' and score>= " + cmbScore.Text;
-                newst.GetRow(insertIndex).GetCell(7).SetCellValue(dvScore.Count);
+                int pTotal = dvScore.Count;
+                int leftCount = pTotal - p30Count - p60Count;
+
+                newRow.CreateCell(5).SetCellValue(p30Count);
+                newRow.CreateCell(6).SetCellValue(Math.Round((double)p30Count/ pTotal,2));
+                newRow.CreateCell(7).SetCellValue(p60Count);
+                newRow.CreateCell(8).SetCellValue(Math.Round((double)p60Count / pTotal, 2));
+                newRow.CreateCell(9).SetCellValue(leftCount);
+                newRow.CreateCell(10).SetCellValue(Math.Round((double)leftCount / pTotal, 2));
+                newRow.CreateCell(11).SetCellValue(pTotal);
                 insertIndex++;
             }
         }
