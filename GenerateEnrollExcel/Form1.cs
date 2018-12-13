@@ -19,6 +19,7 @@ namespace GenerateScore
         private XSSFWorkbook hssfworkbook = null;
         private XSSFWorkbook newwb = null;
         private DataTable dt;
+        private DataTable dtTotal;
         private XSSFSheet sheet1;
         private XSSFSheet newst;
         private int insertIndex = 1;
@@ -63,11 +64,15 @@ namespace GenerateScore
 
             // 获取sheetName
             newwb = new XSSFWorkbook();
+            setTotalTable();
             for (var i=0;i< hssfworkbook.NumberOfSheets;i++)
             {
                 // calculate average scores of each sheet
                 calculateSheet(i);
             }
+
+            renderTotalSheet(); // 计算出单个老师的优良率
+
             FileStream file = new FileStream(@"test.xlsx", FileMode.Create);
             newwb.Write(file);
             file.Close();
@@ -177,6 +182,17 @@ namespace GenerateScore
                 newRow.CreateCell(9).SetCellValue(leftCount);
                 newRow.CreateCell(10).SetCellValue(Math.Round((double)leftCount / pTotal, 2));
                 newRow.CreateCell(11).SetCellValue(pTotal);
+
+                // set data to calculate single teacher
+                DataRow row = dtTotal.NewRow();
+                row["teacher"] = teacher;
+                row["mobile"] = mobile;
+                row["p30"] = p30Count;
+                row["p60"] = p60Count;
+                row["pLast"] = leftCount;
+                row["pTotal"] = pTotal;
+                dtTotal.Rows.Add(row);
+
                 insertIndex++;
             }
         }
@@ -212,6 +228,60 @@ namespace GenerateScore
                 
                 dt.Rows.Add(row);
                 i++;
+            }
+        }
+
+        private void setTotalTable()
+        {// 总的分数算法
+            dtTotal = new DataTable();
+            dtTotal.Columns.Add(new DataColumn("teacher"));
+            dtTotal.Columns.Add(new DataColumn("mobile"));
+            dtTotal.Columns.Add(new DataColumn("p30", typeof(float)));
+            dtTotal.Columns.Add(new DataColumn("p60", typeof(float)));
+            dtTotal.Columns.Add(new DataColumn("pLast", typeof(float)));
+            dtTotal.Columns.Add(new DataColumn("pTotal", typeof(float)));
+        }
+
+        private void renderTotalSheet()
+        {
+            XSSFSheet totalST = newwb.CreateSheet("汇总") as XSSFSheet;
+            XSSFRow newRow = totalST.CreateRow(0) as XSSFRow;
+            // 老师  手机号 优等人数 良等人数 有效人数
+            newRow.CreateCell(0).SetCellValue("老师");
+            newRow.CreateCell(1).SetCellValue("手机号");
+            newRow.CreateCell(2).SetCellValue("优等人数");
+            newRow.CreateCell(3).SetCellValue("优等比例");
+            newRow.CreateCell(4).SetCellValue("良等人数");
+            newRow.CreateCell(5).SetCellValue("良等比例");
+            newRow.CreateCell(6).SetCellValue("差等人数");
+            newRow.CreateCell(7).SetCellValue("差等比例");
+            newRow.CreateCell(8).SetCellValue("有效人数");
+
+            DataView dvClass = dtTotal.DefaultView;
+            DataTable dataTableClasses = dvClass.ToTable(true, "teacher", "mobile");
+            for (var j = 0; j < dataTableClasses.Rows.Count; j++)
+            {
+                newRow = totalST.CreateRow(j+1) as XSSFRow;
+                string teacher = dataTableClasses.Rows[j]["teacher"].ToString();
+                string mobile = dataTableClasses.Rows[j]["mobile"].ToString();
+                // 老师  手机号 优等人数 良等人数 有效人数
+                newRow.CreateCell(0).SetCellValue(teacher);
+                newRow.CreateCell(1).SetCellValue(mobile);
+
+                dvClass.RowFilter = "teacher='" + teacher + "' and mobile='" + mobile+"'";
+                DataTable newTable = dvClass.ToTable(false, "p30", "p60", "pLast", "pTotal");
+                int p30Total = int.Parse(newTable.Compute("sum(p30)", "").ToString());
+                int p60Total = int.Parse(newTable.Compute("sum(p60)", "").ToString());
+                int pLastTotal = int.Parse(newTable.Compute("sum(pLast)", "").ToString());
+                int pTotalTotal = int.Parse(newTable.Compute("sum(pTotal)", "").ToString());
+
+                newRow.CreateCell(2).SetCellValue(p30Total);
+                newRow.CreateCell(3).SetCellValue(Math.Round((double)p30Total / pTotalTotal, 2));
+                newRow.CreateCell(4).SetCellValue(p60Total);
+                newRow.CreateCell(5).SetCellValue(Math.Round((double)p60Total / pTotalTotal, 2));
+                newRow.CreateCell(6).SetCellValue(pLastTotal);
+                newRow.CreateCell(7).SetCellValue(Math.Round((double)pLastTotal / pTotalTotal, 2));
+                newRow.CreateCell(8).SetCellValue(pTotalTotal);
             }
         }
     }
