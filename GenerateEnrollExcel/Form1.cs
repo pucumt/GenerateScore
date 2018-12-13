@@ -112,13 +112,13 @@ namespace GenerateScore
             var testCell = sheet1.GetRow(0).GetCell(m);
             while (testCell != null)
             {   // 测试分别运算出结果
-                calculateTest(m, testCell.StringCellValue);
+                calculateTest(m, testCell.StringCellValue, sheet1.GetRow(0).GetCell(m+1)==null);
                 m++;
                 testCell = sheet1.GetRow(0).GetCell(m);
             }
         }
 
-        private void calculateTest(int m, string testName)
+        private void calculateTest(int m, string testName, bool isLast)
         {
             setDataTable(m);
 
@@ -128,11 +128,11 @@ namespace GenerateScore
             for (var j = 0; j < dataTableDistinct.Rows.Count; j++)
             {
                 // 按照年级排名
-                calculateGrade(testName, dataTableDistinct.Rows[j]["grade"].ToString());
+                calculateGrade(testName, dataTableDistinct.Rows[j]["grade"].ToString(), isLast);
             }
         }
 
-        private void calculateGrade(string testName, string gradeTxt)
+        private void calculateGrade(string testName, string gradeTxt, bool isLast)
         {
             DataView dv = dt.DefaultView;
             dv.RowFilter = "grade = '" + gradeTxt + "' and score> " + cmbScore.Text;
@@ -183,15 +183,18 @@ namespace GenerateScore
                 newRow.CreateCell(10).SetCellValue(Math.Round((double)leftCount / pTotal, 2));
                 newRow.CreateCell(11).SetCellValue(pTotal);
 
-                // set data to calculate single teacher
-                DataRow row = dtTotal.NewRow();
-                row["teacher"] = teacher;
-                row["mobile"] = mobile;
-                row["p30"] = p30Count;
-                row["p60"] = p60Count;
-                row["pLast"] = leftCount;
-                row["pTotal"] = pTotal;
-                dtTotal.Rows.Add(row);
+                if(isLast)
+                {
+                    // set data to calculate single teacher
+                    DataRow row = dtTotal.NewRow();
+                    row["teacher"] = teacher;
+                    row["mobile"] = mobile;
+                    row["p30"] = p30Count;
+                    row["p60"] = p60Count;
+                    row["pLast"] = leftCount;
+                    row["pTotal"] = pTotal;
+                    dtTotal.Rows.Add(row);
+                }
 
                 insertIndex++;
             }
