@@ -143,8 +143,8 @@ namespace GenerateScore
             {
                 return; 
             }
-            int p30 = (int)Math.Ceiling(total * 0.3);
-            int p60 = (int)Math.Ceiling(total * 0.6);
+            int p30 = (int)Math.Ceiling(total * 0.3)-1;
+            int p60 = (int)Math.Ceiling(total * 0.6)-1;
 
             float p30Score = (float)dtLast.Rows[p30]["score"]; // 优的分数
             float p60Score = (float)dtLast.Rows[p60]["score"]; // 良的分数
