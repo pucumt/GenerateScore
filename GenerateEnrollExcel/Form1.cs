@@ -211,7 +211,7 @@ namespace GenerateScore
             dt.Columns.Add(new DataColumn("mobile"));
             var i = 1;
             var s = j;// score column index
-            while (sheet1.GetRow(i) != null)
+            while (sheet1.GetRow(i) != null && sheet1.GetRow(i).GetCell(0)!=null)
             {
                 DataRow row = dt.NewRow();
                 row["grade"] = sheet1.GetRow(i).GetCell(3).StringCellValue;
@@ -220,7 +220,7 @@ namespace GenerateScore
                 row["mobile"] = sheet1.GetRow(i).GetCell(6).StringCellValue;
 
                 var cell = sheet1.GetRow(i).GetCell(s);
-                if (cell.CellType == NPOI.SS.UserModel.CellType.Numeric)
+                if (cell.CellType == NPOI.SS.UserModel.CellType.Numeric || cell.CellType == NPOI.SS.UserModel.CellType.Formula)
                 {
                     row["score"] = sheet1.GetRow(i).GetCell(s).NumericCellValue;
                 }
