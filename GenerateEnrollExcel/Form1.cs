@@ -214,19 +214,33 @@ namespace GenerateScore
             while (sheet1.GetRow(i) != null && sheet1.GetRow(i).GetCell(0)!=null)
             {
                 DataRow row = dt.NewRow();
-                row["grade"] = sheet1.GetRow(i).GetCell(3).StringCellValue;
+                var grade = sheet1.GetRow(i).GetCell(3).StringCellValue;
+                if (string.IsNullOrEmpty(grade))
+                {
+                    break;
+                }
+                row["grade"] = grade;
                 row["className"] = sheet1.GetRow(i).GetCell(0).StringCellValue;
                 row["teacher"] = sheet1.GetRow(i).GetCell(5).StringCellValue;
-                row["mobile"] = sheet1.GetRow(i).GetCell(6).StringCellValue;
-
-                var cell = sheet1.GetRow(i).GetCell(s);
+                var cell = sheet1.GetRow(i).GetCell(6);
                 if (cell.CellType == NPOI.SS.UserModel.CellType.Numeric || cell.CellType == NPOI.SS.UserModel.CellType.Formula)
                 {
-                    row["score"] = sheet1.GetRow(i).GetCell(s).NumericCellValue;
+                    row["mobile"] = cell.NumericCellValue;
                 }
                 else
                 {
-                    row["score"] = float.Parse(sheet1.GetRow(i).GetCell(s).StringCellValue);
+                    row["mobile"] = cell.StringCellValue;
+                }
+                
+
+                cell = sheet1.GetRow(i).GetCell(s);
+                if (cell.CellType == NPOI.SS.UserModel.CellType.Numeric || cell.CellType == NPOI.SS.UserModel.CellType.Formula)
+                {
+                    row["score"] = cell.NumericCellValue;
+                }
+                else
+                {
+                    row["score"] = float.Parse(cell.StringCellValue);
                 }
                 
                 dt.Rows.Add(row);
