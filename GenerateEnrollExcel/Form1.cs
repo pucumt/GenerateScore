@@ -112,7 +112,7 @@ namespace GenerateScore
             var testCell = sheet1.GetRow(0).GetCell(m);
             while (testCell != null && testCell.CellType!= NPOI.SS.UserModel.CellType.Blank)
             {   // 测试分别运算出结果
-                calculateTest(m, testCell.StringCellValue, sheet1.GetRow(0).GetCell(m+1)==null);
+                calculateTest(m, testCell.StringCellValue, (sheet1.GetRow(0).GetCell(m+1)==null|| sheet1.GetRow(0).GetCell(m + 1).CellType== NPOI.SS.UserModel.CellType.Blank));
                 m++;
                 testCell = sheet1.GetRow(0).GetCell(m);
             }
