@@ -71,6 +71,7 @@ namespace GenerateScore
                 calculateSheet(i);
             }
 
+            renderLastTestSheet(); // 计算出最后一次测试的班级情况
             renderTotalSheet(); // 计算出单个老师的优良率
 
             FileStream file = new FileStream(@"test.xlsx", FileMode.Create);
@@ -182,6 +183,8 @@ namespace GenerateScore
                     row["teacher"] = teacher;
                     row["mobile"] = mobile;
                     row["dvalue"] = dvalue;
+                    row["className"] = className;
+                    row["testName"] = testName;
                     dtTotal.Rows.Add(row);
                 }
                 insertIndex++;
@@ -241,6 +244,37 @@ namespace GenerateScore
             dtTotal.Columns.Add(new DataColumn("teacher"));
             dtTotal.Columns.Add(new DataColumn("mobile"));
             dtTotal.Columns.Add(new DataColumn("dvalue", typeof(float)));
+            dtTotal.Columns.Add(new DataColumn("className"));
+            dtTotal.Columns.Add(new DataColumn("testName"));
+        }
+
+        private void renderLastTestSheet()
+        {
+            XSSFSheet totalST = newwb.CreateSheet("最后一次测试") as XSSFSheet;
+            XSSFRow newRow = totalST.CreateRow(0) as XSSFRow;
+
+            // 老师  手机号 优等人数 良等人数 有效人数
+            newRow.CreateCell(0).SetCellValue("老师");
+            newRow.CreateCell(1).SetCellValue("手机号");
+            newRow.CreateCell(3).SetCellValue("课程名");
+            newRow.CreateCell(4).SetCellValue("测试名");
+            newRow.CreateCell(2).SetCellValue("差值");
+
+            for (var j = 0; j < dtTotal.Rows.Count; j++)
+            {
+                newRow = totalST.CreateRow(j + 1) as XSSFRow;
+                string teacher = dtTotal.Rows[j]["teacher"].ToString();
+                string mobile = dtTotal.Rows[j]["mobile"].ToString();
+                string dvalue = dtTotal.Rows[j]["dvalue"].ToString();
+                string className = dtTotal.Rows[j]["className"].ToString();
+                string testName = dtTotal.Rows[j]["testName"].ToString();
+                // 老师  手机号 优等人数 良等人数 有效人数
+                newRow.CreateCell(0).SetCellValue(teacher);
+                newRow.CreateCell(1).SetCellValue(mobile);
+                newRow.CreateCell(2).SetCellValue(dvalue);
+                newRow.CreateCell(3).SetCellValue(className);
+                newRow.CreateCell(4).SetCellValue(testName);
+            }
         }
 
         private void renderTotalSheet()
@@ -252,6 +286,8 @@ namespace GenerateScore
             newRow.CreateCell(0).SetCellValue("老师");
             newRow.CreateCell(1).SetCellValue("手机号");
             newRow.CreateCell(2).SetCellValue("差值和");
+            newRow.CreateCell(3).SetCellValue("班级数");
+            newRow.CreateCell(4).SetCellValue("平均值");
 
             DataView dvClass = dtTotal.DefaultView;
             DataTable dataTableClasses = dvClass.ToTable(true, "teacher", "mobile");
@@ -267,8 +303,11 @@ namespace GenerateScore
                 dvClass.RowFilter = "teacher='" + teacher + "' and mobile='" + mobile+"'";
                 DataTable newTable = dvClass.ToTable(false, "dvalue");
                 Single total = Single.Parse(newTable.Compute("sum(dvalue)", "").ToString());
+                int totalCount = newTable.Rows.Count;
 
                 newRow.CreateCell(2).SetCellValue(Math.Round(total, 2));
+                newRow.CreateCell(3).SetCellValue(totalCount);
+                newRow.CreateCell(4).SetCellValue(Math.Round(total/ totalCount, 2));
             }
         }
     }
