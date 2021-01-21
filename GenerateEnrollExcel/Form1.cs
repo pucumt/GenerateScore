@@ -20,7 +20,6 @@ namespace GenerateScore
         private XSSFWorkbook newwb = null;
         private DataTable dt; // excel 对应的table
         private DataTable dtTotal; // 最终结果
-        private DataTable dtAll; // 最终结果
         private XSSFSheet sheet1;
         private XSSFSheet newst;
         private int insertIndex = 1;
@@ -41,150 +40,44 @@ namespace GenerateScore
 
         }
 
-        private void loadAllList()
-        {
-            try
-            {
-                using (FileStream fs = File.Open(@"E:\project\net\GenerateScore\all sandy.xlsx", FileMode.Open,
-            FileAccess.Read, FileShare.ReadWrite))
-                {
-                    //把xls文件读入workbook变量里，之后就可以关闭了  
-                    hssfworkbook = new XSSFWorkbook(fs);
-                    fs.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("error:" + ex.Message);
-            }
-            // 获取sheetName
-            
-
-            sheet1 = hssfworkbook.GetSheetAt(0) as XSSFSheet;
-            if (sheet1 == null)
-            {
-                MessageBox.Show("error of all!");
-                return;
-            }
-
-            //dtAll.Columns.Add(new DataColumn("studentName"));
-            //dtAll.Columns.Add(new DataColumn("mobile"));
-            //dtAll.Columns.Add(new DataColumn("emailName"));
-            //dtAll.Columns.Add(new DataColumn("emailMobile"));
-
-            var i = 1; var curEmailMobile = ""; var couldBeUse = true; var j = 0; DataRow lastRow = null;
-            while (sheet1.GetRow(i) != null && sheet1.GetRow(i).GetCell(0) != null)
-            {
-                DataRow row = dtAll.NewRow();
-                var name = sheet1.GetRow(i).GetCell(0).StringCellValue.Trim();
-                if (string.IsNullOrEmpty(name))
-                {
-                    break;
-                }
-                row["studentName"] = name;
-
-                var cell = sheet1.GetRow(i).GetCell(1);
-                if (cell.CellType == NPOI.SS.UserModel.CellType.Numeric || cell.CellType == NPOI.SS.UserModel.CellType.Formula)
-                {
-                    row["mobile"] = cell.NumericCellValue;
-                }
-                else
-                {
-                    row["mobile"] = cell.StringCellValue.Trim();
-                }
-                
-                row["grade"] = sheet1.GetRow(i).GetCell(7).StringCellValue.Trim();
-
-                
-                // lastRow = row;
-                dtAll.Rows.Add(row);
-                i++;
-            }
-
-            MessageBox.Show("处理完毕all.xlsx");
-        }
-
-
-        private void loadAlreadyList()
-        {
-            try
-            {
-                using (FileStream fs = File.Open(@"E:\project\net\GenerateScore\new2.xlsx", FileMode.Open,
-            FileAccess.Read, FileShare.ReadWrite))
-                {
-                    //把xls文件读入workbook变量里，之后就可以关闭了  
-                    hssfworkbook = new XSSFWorkbook(fs);
-                    fs.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("error:" + ex.Message);
-            }
-
-            sheet1 = hssfworkbook.GetSheetAt(0) as XSSFSheet;
-            if (sheet1 == null)
-            {
-                MessageBox.Show("error of all!");
-                return;
-            }
-
-            //dtAll.Columns.Add(new DataColumn("studentName"));
-            //dtAll.Columns.Add(new DataColumn("mobile"));
-            //dtAll.Columns.Add(new DataColumn("emailName"));
-            //dtAll.Columns.Add(new DataColumn("emailMobile"));
-
-            var i = 1;
-            while (sheet1.GetRow(i) != null && sheet1.GetRow(i).GetCell(0) != null)
-            {
-                DataRow row = dtTotal.NewRow();
-                var name = sheet1.GetRow(i).GetCell(0).StringCellValue.Trim();
-                if (string.IsNullOrEmpty(name))
-                {
-                    break;
-                }
-                row["studentName"] = name;
-
-                var cell = sheet1.GetRow(i).GetCell(1);
-                if (cell.CellType == NPOI.SS.UserModel.CellType.Numeric || cell.CellType == NPOI.SS.UserModel.CellType.Formula)
-                {
-                    row["mobile"] = cell.NumericCellValue;
-                }
-                else
-                {
-                    row["mobile"] = cell.StringCellValue.Trim();
-                }
-
-                row["emailName"] = sheet1.GetRow(i).GetCell(7).StringCellValue.Trim();
-
-
-                Single total = Single.Parse(dtAll.Compute("count(mobile)", "studentName='" + row["studentName"] + "' and mobile='" + row["mobile"] + "' and grade='"+ row["emailName"] + "'").ToString());
-                if (total == 0)
-                {
-                    Console.WriteLine(name + ":" + row["mobile"]+":"+ row["emailName"]);
-                }
-
-                dtTotal.Rows.Add(row);
-                i++;
-            }
-
-            MessageBox.Show("处理完毕allready.xlsx");
-        }
-
-
         private void btn_load_Click(object sender, EventArgs e)
         {
+            if(string.IsNullOrEmpty(txtFile.Text.Trim()))
+            {
+                return;
+            }
+
+            try
+            {
+                using (FileStream fs = File.Open(@txtFile.Text, FileMode.Open,
+            FileAccess.Read, FileShare.ReadWrite))
+                {
+                    //把xls文件读入workbook变量里，之后就可以关闭了  
+                    hssfworkbook = new XSSFWorkbook(fs);
+                    fs.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("error:"+ex.Message);
+            }
+
+            // 获取sheetName
+            newwb = new XSSFWorkbook();
             setTotalTable();
+            for (var i=0;i< hssfworkbook.NumberOfSheets;i++)
+            {
+                // calculate average scores of each sheet
+                calculateSheet(i);
+            }
 
-            // loadAlreadyList();
+            renderLastTestSheet(); // 计算出最后一次测试的班级情况
+            renderTotalSheet(); // 计算出单个老师的优良率
 
-            loadAllList();
-
-            loadAlreadyList();
-
-
-            //exportMulti();
-
+            FileStream file = new FileStream(@"test.xlsx", FileMode.Create);
+            newwb.Write(file);
+            file.Close();
+            MessageBox.Show("处理完毕，请查看test.xlsx");
         }
 
         private void calculateSheet(int i)
@@ -215,9 +108,9 @@ namespace GenerateScore
             insertIndex = 1;
             int m = 7;
             var testCell = sheet1.GetRow(0).GetCell(m);
-            while (testCell != null && testCell.CellType != NPOI.SS.UserModel.CellType.Blank)
+            while (testCell != null && testCell.CellType!= NPOI.SS.UserModel.CellType.Blank)
             {   // 测试分别运算出结果
-                calculateTest(m, testCell.StringCellValue, (sheet1.GetRow(0).GetCell(m + 1) == null || sheet1.GetRow(0).GetCell(m + 1).CellType == NPOI.SS.UserModel.CellType.Blank));
+                calculateTest(m, testCell.StringCellValue, (sheet1.GetRow(0).GetCell(m+1)==null|| sheet1.GetRow(0).GetCell(m + 1).CellType== NPOI.SS.UserModel.CellType.Blank));
                 m++;
                 testCell = sheet1.GetRow(0).GetCell(m);
             }
@@ -244,9 +137,9 @@ namespace GenerateScore
             dv.Sort = "score desc";
             DataTable dtLast = dv.ToTable(false, "score");
             var total = dtLast.Rows.Count;
-            if (total == 0)
+            if(total==0)
             {
-                return;
+                return; 
             }
 
             // 单个测试总的平均分
@@ -277,13 +170,13 @@ namespace GenerateScore
                 DataView dvScore = dt.DefaultView;
                 dvScore.RowFilter = "grade = '" + gradeTxt + "' and className='" + className + "' and score>= " + cmbScore.Text;
                 DataTable dtAvg = dv.ToTable(false, "score");
-                double curAvg = double.Parse(dtAvg.Compute("avg(score)", "").ToString());
+                double curAvg = double.Parse(dtAvg.Compute("avg(score)","").ToString());
                 double dvalue = Math.Round(curAvg - totalAvg, 3);
                 newRow.CreateCell(5).SetCellValue(Math.Round(curAvg, 2));
                 newRow.CreateCell(6).SetCellValue(Math.Round(totalAvg, 2));
                 newRow.CreateCell(7).SetCellValue(dvalue);
 
-                if (isLast)
+                if(isLast)
                 {
                     // set data to calculate single teacher
                     DataRow row = dtTotal.NewRow();
@@ -309,7 +202,7 @@ namespace GenerateScore
             dt.Columns.Add(new DataColumn("mobile"));
             var i = 1;
             var s = j;// score column index
-            while (sheet1.GetRow(i) != null && sheet1.GetRow(i).GetCell(0) != null)
+            while (sheet1.GetRow(i) != null && sheet1.GetRow(i).GetCell(0)!=null)
             {
                 DataRow row = dt.NewRow();
                 var grade = sheet1.GetRow(i).GetCell(3).StringCellValue;
@@ -335,11 +228,15 @@ namespace GenerateScore
                 {
                     row["score"] = cell.NumericCellValue;
                 }
+                else if(cell.CellType == NPOI.SS.UserModel.CellType.Blank)
+                {
+                    row["score"] = 0;
+                }
                 else
                 {
                     row["score"] = float.Parse(cell.StringCellValue);
                 }
-
+                
                 dt.Rows.Add(row);
                 i++;
             }
@@ -348,20 +245,11 @@ namespace GenerateScore
         private void setTotalTable()
         {// 总的分数算法
             dtTotal = new DataTable();
-            dtTotal.Columns.Add(new DataColumn("studentName"));
+            dtTotal.Columns.Add(new DataColumn("teacher"));
             dtTotal.Columns.Add(new DataColumn("mobile"));
-            dtTotal.Columns.Add(new DataColumn("emailName"));
-            dtTotal.Columns.Add(new DataColumn("emailMobile"));
-
-            dtAll = new DataTable();
-            dtAll.Columns.Add(new DataColumn("studentName"));
-            dtAll.Columns.Add(new DataColumn("mobile"));
-            dtAll.Columns.Add(new DataColumn("emailName"));
-            dtAll.Columns.Add(new DataColumn("emailMobile"));
-            dtAll.Columns.Add(new DataColumn("address"));
-            dtAll.Columns.Add(new DataColumn("trainClass"));
-            dtAll.Columns.Add(new DataColumn("materialPrice"));
-            dtAll.Columns.Add(new DataColumn("grade"));
+            dtTotal.Columns.Add(new DataColumn("dvalue", typeof(float)));
+            dtTotal.Columns.Add(new DataColumn("className"));
+            dtTotal.Columns.Add(new DataColumn("testName"));
         }
 
         private void renderLastTestSheet()
@@ -409,21 +297,21 @@ namespace GenerateScore
             DataTable dataTableClasses = dvClass.ToTable(true, "teacher", "mobile");
             for (var j = 0; j < dataTableClasses.Rows.Count; j++)
             {
-                newRow = totalST.CreateRow(j + 1) as XSSFRow;
+                newRow = totalST.CreateRow(j+1) as XSSFRow;
                 string teacher = dataTableClasses.Rows[j]["teacher"].ToString();
                 string mobile = dataTableClasses.Rows[j]["mobile"].ToString();
                 // 老师  手机号 优等人数 良等人数 有效人数
                 newRow.CreateCell(0).SetCellValue(teacher);
                 newRow.CreateCell(1).SetCellValue(mobile);
 
-                dvClass.RowFilter = "teacher='" + teacher + "' and mobile='" + mobile + "'";
+                dvClass.RowFilter = "teacher='" + teacher + "' and mobile='" + mobile+"'";
                 DataTable newTable = dvClass.ToTable(false, "dvalue");
                 Single total = Single.Parse(newTable.Compute("sum(dvalue)", "").ToString());
                 int totalCount = newTable.Rows.Count;
 
                 newRow.CreateCell(2).SetCellValue(Math.Round(total, 2));
                 newRow.CreateCell(3).SetCellValue(totalCount);
-                newRow.CreateCell(4).SetCellValue(Math.Round(total / totalCount, 2));
+                newRow.CreateCell(4).SetCellValue(Math.Round(total/ totalCount, 2));
             }
         }
     }
